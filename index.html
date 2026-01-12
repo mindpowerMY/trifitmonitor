@@ -94,15 +94,49 @@
 </div>
 
 <script>
-  let logs = JSON.parse(localStorage.getItem("trainingLogs")) || [];
+  const API_BASE = "https://trifit-api.wheezhacker.workers.dev";
 
-  function saveLog() {
+  let logs = [];
+  let chartInstance = null;
+
+  async function apiGetLogs() {
+    const res = await fetch(`${API_BASE}/api/logs`);
+    const data = await res.json();
+    return data.logs || [];
+  }
+
+  async function apiAddLog(log) {
+    const res = await fetch(`${API_BASE}/api/logs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(log),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "Failed to save");
+    return data.log;
+  }
+
+  async function apiDeleteLog(id) {
+    const res = await fetch(`${API_BASE}/api/logs?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "Failed to delete");
+    return true;
+  }
+
+  function setStatus(msg) {
+    // Optional: show status in console for now
+    console.log(msg);
+  }
+
+  async function saveLog() {
     const log = {
       date: document.getElementById("date").value,
       activity: document.getElementById("activity").value,
-      distance: Number(document.getElementById("distance").value),
-      duration: Number(document.getElementById("duration").value),
-      notes: document.getElementById("notes").value
+      distance: Number(document.getElementById("distance").value || 0),
+      duration: Number(document.getElementById("duration").value || 0),
+      notes: document.getElementById("notes").value || "",
     };
 
     if (!log.date || !log.duration) {
@@ -110,8 +144,36 @@
       return;
     }
 
-    logs.push(log);
-    localStorage.setItem("trainingLogs", JSON.stringify(logs));
+    try {
+      setStatus("Saving log...");
+      await apiAddLog(log);
+
+      // Clear inputs (optional)
+      document.getElementById("distance").value = "";
+      document.getElementById("duration").value = "";
+      document.getElementById("notes").value = "";
+
+      await loadAndRender();
+      setStatus("Saved.");
+    } catch (e) {
+      alert(`Save failed: ${e.message}`);
+    }
+  }
+
+  async function deleteLog(id) {
+    if (!confirm("Delete this record?")) return;
+    try {
+      setStatus("Deleting log...");
+      await apiDeleteLog(id);
+      await loadAndRender();
+      setStatus("Deleted.");
+    } catch (e) {
+      alert(`Delete failed: ${e.message}`);
+    }
+  }
+
+  async function loadAndRender() {
+    logs = await apiGetLogs();
     render();
   }
 
@@ -122,31 +184,43 @@
   }
 
   function renderHistory() {
-  const ul = document.getElementById("history");
-  ul.innerHTML = "";
-  logs.slice().reverse().forEach((l, index) => {
-    const li = document.createElement("li");
-    li.innerHTML = `
-      ${l.date} – ${l.activity} – ${l.distance || 0}km – ${l.duration}min 
-      <button onclick="deleteLog(${logs.length - 1 - index})">❌</button>
-    `;
-    ul.appendChild(li);
-  });
-}
+    const ul = document.getElementById("history");
+    ul.innerHTML = "";
+
+    logs
+      .slice()
+      .reverse()
+      .forEach((l) => {
+        const li = document.createElement("li");
+
+        li.innerHTML = `
+          ${l.date} – ${l.activity} – ${(l.distance || 0).toFixed(2)}km – ${l.duration}min
+          <button onclick="deleteLog('${l.id}')">❌</button>
+        `;
+
+        ul.appendChild(li);
+      });
+  }
 
   function renderSummary() {
     let totals = { run: 0, bike: 0, swim: 0, badminton: 0 };
+    let badmintonSessions = 0;
 
-    logs.forEach(l => {
-      totals[l.activity] += l.distance || 0;
+    logs.forEach((l) => {
+      if (totals[l.activity] !== undefined) {
+        totals[l.activity] += Number(l.distance || 0);
+      }
+      if (l.activity === "badminton") badmintonSessions += 1;
     });
 
     document.getElementById("summary").innerText =
-      `Run: ${totals.run.toFixed(1)} km | Bike: ${totals.bike.toFixed(1)} km | Swim: ${totals.swim.toFixed(1)} km | Badminton sessions: ${logs.filter(l => l.activity === "badminton").length}`;
+      `Run: ${totals.run.toFixed(1)} km | Bike: ${totals.bike.toFixed(1)} km | Swim: ${totals.swim.toFixed(1)} km | Badminton sessions: ${badmintonSessions}`;
 
+    // Basic coaching feedback (we’ll upgrade to AI later)
     let feedback = "Good consistency.";
-    if (totals.run > totals.bike * 2) feedback = "⚠️ You are running much more than biking. Balance it.";
-    if (totals.swim < 1) feedback = "⚠️ Swimming volume is very low. Add easy swim sessions.";
+    if (totals.run > totals.bike * 2 && totals.run > 5) feedback = "⚠️ Run-heavy week. Balance with bike/swim to reduce injury risk.";
+    if (totals.swim < 1) feedback = "⚠️ Swimming volume is low. Add 1–2 easy swim sessions (even short ones).";
+    if (badmintonSessions > 0) feedback += " (Remember: badminton counts as a hard leg day.)";
 
     document.getElementById("coachFeedback").innerText = feedback;
   }
@@ -154,39 +228,30 @@
   function renderChart() {
     const ctx = document.getElementById("chart").getContext("2d");
 
-    const data = {
-      run: 0,
-      bike: 0,
-      swim: 0
-    };
+    const data = { run: 0, bike: 0, swim: 0 };
 
-    logs.forEach(l => {
+    logs.forEach((l) => {
       if (data[l.activity] !== undefined) {
-        data[l.activity] += l.distance || 0;
+        data[l.activity] += Number(l.distance || 0);
       }
     });
 
-    if (window.myChart) window.myChart.destroy();
+    if (chartInstance) chartInstance.destroy();
 
-    window.myChart = new Chart(ctx, {
+    chartInstance = new Chart(ctx, {
       type: "bar",
       data: {
         labels: ["Run", "Bike", "Swim"],
         datasets: [{
           label: "Total Distance (km)",
           data: [data.run, data.bike, data.swim],
-        }]
-      }
+        }],
+      },
     });
   }
 
-function deleteLog(index) {
-  if (!confirm("Delete this record?")) return;
-  logs.splice(index, 1);
-  localStorage.setItem("trainingLogs", JSON.stringify(logs));
-  render();
-}
-  render();
+  // Load logs from cloud on startup
+  loadAndRender();
 </script>
 
 </body>
