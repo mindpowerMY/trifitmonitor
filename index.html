@@ -196,6 +196,116 @@ button:hover {
     grid-column: 1 / -1;
   }
 }
+
+    /* --- Web3-ish History List --- */
+.history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  box-shadow: 0 6px 18px var(--shadow);
+  backdrop-filter: blur(6px);
+}
+
+@media (prefers-color-scheme: light) {
+  .history-item {
+    background: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.01));
+  }
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  white-space: nowrap;
+}
+
+.badge .emoji {
+  font-size: 14px;
+}
+
+.details {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.details .topline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  font-weight: 600;
+}
+
+.details .meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.details .notes {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  border-color: var(--primary);
+}
+
+.icon-btn.danger:hover {
+  border-color: #ff4d4f;
+}
+
+@media (max-width: 640px) {
+  .history-item {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .actions {
+    justify-content: flex-end;
+  }
+  .details .notes {
+    white-space: normal;
+  }
+}
   </style>
 </head>
 <body>
@@ -265,7 +375,7 @@ button:hover {
 
 <div class="card">
   <h2>Training History</h2>
-  <ul id="history"></ul>
+  <ul id="history" class="history-list"></ul>
 </div>
 
 <div class="card">
@@ -363,24 +473,65 @@ button:hover {
     renderChart();
   }
 
-  function renderHistory() {
-    const ul = document.getElementById("history");
-    ul.innerHTML = "";
+  function activityBadge(activity) {
+  const map = {
+    run: { emoji: "🏃", label: "RUN" },
+    bike: { emoji: "🚴", label: "BIKE" },
+    swim: { emoji: "🏊", label: "SWIM" },
+    badminton: { emoji: "🏸", label: "BADMINTON" },
+  };
+  return map[activity] || { emoji: "🏋️", label: activity.toUpperCase() };
+}
 
-    logs
-      .slice()
-      .reverse()
-      .forEach((l) => {
-        const li = document.createElement("li");
+function renderHistory() {
+  const ul = document.getElementById("history");
+  ul.innerHTML = "";
 
-        li.innerHTML = `
-          ${l.date} – ${l.activity} – ${(l.distance || 0).toFixed(2)}km – ${l.duration}min
-          <button onclick="deleteLog('${l.id}')">❌</button>
-        `;
+  const items = logs.slice().reverse();
 
-        ul.appendChild(li);
-      });
-  }
+  items.forEach((l) => {
+    const { emoji, label } = activityBadge(l.activity);
+
+    const distanceText = (Number(l.distance || 0)).toFixed(2) + " km";
+    const durationText = (Number(l.duration || 0)) + " min";
+    const notesText = (l.notes || "").trim();
+
+    const li = document.createElement("li");
+    li.className = "history-item";
+
+    li.innerHTML = `
+      <div class="badge">
+        <span class="emoji">${emoji}</span>
+        <span>${label}</span>
+      </div>
+
+      <div class="details">
+        <div class="topline">
+          <span>${l.date}</span>
+          <span class="meta">• ${distanceText} • ${durationText}</span>
+        </div>
+        ${notesText ? `<div class="notes">${escapeHtml(notesText)}</div>` : `<div class="notes">—</div>`}
+      </div>
+
+      <div class="actions">
+        <button class="icon-btn" title="Edit (coming soon)" onclick="alert('Edit is coming next!')">✏️</button>
+        <button class="icon-btn danger" title="Delete" onclick="deleteLog('${l.id}')">🗑️</button>
+      </div>
+    `;
+
+    ul.appendChild(li);
+  });
+}
+
+// Prevent notes from breaking HTML
+function escapeHtml(str) {
+  return str
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
 
   function renderSummary() {
     let totals = { run: 0, bike: 0, swim: 0, badminton: 0 };
