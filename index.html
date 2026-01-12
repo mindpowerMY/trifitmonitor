@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>My Training Log</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f5f5f5;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    .card {
+      background: white;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+    }
+    button {
+      margin-top: 15px;
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    .feedback {
+      font-weight: bold;
+      color: #006400;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🏊‍♂️🚴‍♂️🏃‍♂️ My Training Dashboard</h1>
+
+<div class="card">
+  <h2>Log Training</h2>
+  <label>Date</label>
+  <input type="date" id="date" />
+
+  <label>Activity</label>
+  <select id="activity">
+    <option value="run">Run</option>
+    <option value="bike">Bike</option>
+    <option value="swim">Swim</option>
+    <option value="badminton">Badminton</option>
+  </select>
+
+  <label>Distance (km)</label>
+  <input type="number" id="distance" step="0.1" />
+
+  <label>Duration (minutes)</label>
+  <input type="number" id="duration" />
+
+  <label>Notes</label>
+  <input type="text" id="notes" />
+
+  <button onclick="saveLog()">Save</button>
+</div>
+
+<div class="card">
+  <h2>Weekly Summary</h2>
+  <p id="summary"></p>
+  <p class="feedback" id="coachFeedback"></p>
+</div>
+
+<div class="card">
+  <h2>Training History</h2>
+  <ul id="history"></ul>
+</div>
+
+<div class="card">
+  <h2>Weekly Volume Chart</h2>
+  <canvas id="chart"></canvas>
+</div>
+
+<script>
+  let logs = JSON.parse(localStorage.getItem("trainingLogs")) || [];
+
+  function saveLog() {
+    const log = {
+      date: document.getElementById("date").value,
+      activity: document.getElementById("activity").value,
+      distance: Number(document.getElementById("distance").value),
+      duration: Number(document.getElementById("duration").value),
+      notes: document.getElementById("notes").value
+    };
+
+    if (!log.date || !log.duration) {
+      alert("Please fill in at least date and duration");
+      return;
+    }
+
+    logs.push(log);
+    localStorage.setItem("trainingLogs", JSON.stringify(logs));
+    render();
+  }
+
+  function render() {
+    renderHistory();
+    renderSummary();
+    renderChart();
+  }
+
+  function renderHistory() {
+  const ul = document.getElementById("history");
+  ul.innerHTML = "";
+  logs.slice().reverse().forEach((l, index) => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      ${l.date} – ${l.activity} – ${l.distance || 0}km – ${l.duration}min 
+      <button onclick="deleteLog(${logs.length - 1 - index})">❌</button>
+    `;
+    ul.appendChild(li);
+  });
+}
+
+  function renderSummary() {
+    let totals = { run: 0, bike: 0, swim: 0, badminton: 0 };
+
+    logs.forEach(l => {
+      totals[l.activity] += l.distance || 0;
+    });
+
+    document.getElementById("summary").innerText =
+      `Run: ${totals.run.toFixed(1)} km | Bike: ${totals.bike.toFixed(1)} km | Swim: ${totals.swim.toFixed(1)} km | Badminton sessions: ${logs.filter(l => l.activity === "badminton").length}`;
+
+    let feedback = "Good consistency.";
+    if (totals.run > totals.bike * 2) feedback = "⚠️ You are running much more than biking. Balance it.";
+    if (totals.swim < 1) feedback = "⚠️ Swimming volume is very low. Add easy swim sessions.";
+
+    document.getElementById("coachFeedback").innerText = feedback;
+  }
+
+  function renderChart() {
+    const ctx = document.getElementById("chart").getContext("2d");
+
+    const data = {
+      run: 0,
+      bike: 0,
+      swim: 0
+    };
+
+    logs.forEach(l => {
+      if (data[l.activity] !== undefined) {
+        data[l.activity] += l.distance || 0;
+      }
+    });
+
+    if (window.myChart) window.myChart.destroy();
+
+    window.myChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: ["Run", "Bike", "Swim"],
+        datasets: [{
+          label: "Total Distance (km)",
+          data: [data.run, data.bike, data.swim],
+        }]
+      }
+    });
+  }
+
+function deleteLog(index) {
+  if (!confirm("Delete this record?")) return;
+  logs.splice(index, 1);
+  localStorage.setItem("trainingLogs", JSON.stringify(logs));
+  render();
+}
+  render();
+</script>
+
+</body>
+</html>
