@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Training Log</title>
+  <title>Personal Triathlon Training Log</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -361,11 +361,140 @@ button:hover {
     padding: 16px;
   }
 }
+.primary-btn {
+  width: 100%;
+  height: 46px;
+  border-radius: 14px;
+  font-size: 16px;
+}
+
+.secondary-btn {
+  width: 100%;
+  height: 46px;
+  border-radius: 14px;
+  font-size: 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.action-bar {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* Mobile: sticky bottom action bar */
+@media (max-width: 640px) {
+  .action-bar {
+    position: sticky;
+    bottom: 10px;
+    padding: 10px;
+    border-radius: 16px;
+    background: rgba(0,0,0,0.20);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+  }
+
+  .input-wrap input,
+  .input-wrap select {
+    font-size: 16px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .card {
+    margin-bottom: 14px;
+  }
+}
+
+/* iPhone safe-area */
+@supports (padding: max(0px)) {
+  @media (max-width: 640px) {
+    .action-bar { bottom: calc(10px + env(safe-area-inset-bottom)); }
+  }
+}
+
+    .date-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  margin: 6px 0 2px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+}
+.date-header .chev {
+  opacity: 0.7;
+}
+
+    .dash-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.dash-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(255,255,255,0.03);
+}
+
+.dash-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.dash-title {
+  font-weight: 800;
+}
+
+.dash-sub {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.delta {
+  font-weight: 800;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.delta.pos { color: #3ddc97; }
+.delta.neg { color: #ff6b6b; }
+
+.bar {
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.bar > div {
+  height: 100%;
+  width: 0%;
+  background: var(--primary);
+}
+    
   </style>
 </head>
 <body>
 
-<h1>🏊‍♂️🚴‍♂️🏃‍♂️ My Training Dashboard</h1>
+<h1>🏊‍♂️🚴‍♂️🏃‍♂️<br>My Training Dashboard</h1>
 
 <div class="card">
   <h2>Log Training</h2>
@@ -416,18 +545,23 @@ button:hover {
       </div>
     </div>
 
-    <div class="save-cell">
-  <button id="saveBtn" onclick="saveOrUpdate()">Save</button>
-</div>
-<div class="save-cell" id="cancelCell" style="display:none;">
-  <button class="icon-btn" style="width:100%; height:38px;" onclick="cancelEdit()">Cancel</button>
-</div>
+    <!--<div class="save-cell">
+      <button id="saveBtn" onclick="saveOrUpdate()">Save</button>
+    </div>
+    <div class="save-cell" id="cancelCell" style="display:none;">
+      <button class="icon-btn" style="width:100%; height:38px;" onclick="cancelEdit()">Cancel</button>
+    </div>-->
+    <div class="action-bar" id="actionBar">
+      <button id="saveBtn" class="primary-btn" onclick="saveOrUpdate()">Save</button>
+      <button id="cancelBtn" class="secondary-btn" onclick="cancelEdit()" style="display:none;">Cancel</button>
+    </div>
   </div>
 </div>
 
 <div class="card">
   <h2>Weekly Summary</h2>
   <p id="summary"></p>
+  <div id="dash" class="dash-grid"></div>
   <p class="feedback" id="coachFeedback"></p>
 </div>
 
@@ -461,6 +595,7 @@ button:hover {
 <script>
   const API_BASE = "https://trifit-api.wheezhacker.workers.dev";
   let editingId = null;
+  const collapsedDates = new Set();
 
   async function apiUpdateLog(log) {
   const res = await fetch(`${API_BASE}/api/logs`, {
@@ -590,7 +725,7 @@ function startEdit(id) {
   document.getElementById("notes").value = l.notes ?? "";
 
   document.getElementById("saveBtn").innerText = "Update";
-  document.getElementById("cancelCell").style.display = "flex";
+  document.getElementById("cancelBtn").style.display = "block";
 }
 
 function cancelEdit() {
@@ -607,7 +742,7 @@ function clearForm() {
   // document.getElementById("date").value = new Date().toISOString().slice(0,10);
 
   document.getElementById("saveBtn").innerText = "Save";
-  document.getElementById("cancelCell").style.display = "none";
+  document.getElementById("cancelBtn").style.display = "none";
 }
   
   async function loadAndRender() {
@@ -661,10 +796,11 @@ function filterLogs(allLogs) {
 }
   
   function render() {
-    renderHistory();
-    renderSummary();
-    renderChart();
-  }
+  renderHistory();
+  renderSummary();
+  renderDashboard();
+  renderChart();
+}
 
   function activityBadge(activity) {
   const map = {
@@ -698,13 +834,20 @@ function renderHistory() {
     header.style.listStyle = "none";
     header.style.marginTop = "8px";
     header.style.marginBottom = "4px";
-    header.innerHTML = `<div style="font-weight:700; color: var(--muted); padding-left: 4px;">${dateKey}</div>`;
+    const isCollapsed = collapsedDates.has(dateKey);
+
+header.innerHTML = `
+  <button class="date-header" onclick="toggleDateGroup('${dateKey}')">
+    <span>${dateKey}</span>
+    <span class="chev">${isCollapsed ? "▸" : "▾"}</span>
+  </button>
+`;
     ul.appendChild(header);
 
     // Cards under date
     items.forEach(l => {
+      if (collapsedDates.has(dateKey)) return;
       const { emoji, label } = activityBadge(l.activity);
-
       const distanceText = (Number(l.distance || 0)).toFixed(2) + " km";
       const durationText = (Number(l.duration || 0)) + " min";
       const notesText = (l.notes || "").trim();
@@ -732,6 +875,7 @@ function renderHistory() {
       `;
 
       ul.appendChild(li);
+      attachSwipeHandlers(li, l.id);
     });
   }
 
@@ -804,8 +948,146 @@ function escapeHtml(str) {
     });
   }
 
+  function setDefaultRangeForMobile() {
+  const rf = document.getElementById("rangeFilter");
+  if (!rf) return;
+  if (window.innerWidth <= 640 && (rf.value === "all" || !rf.value)) {
+    rf.value = "last7";
+  }
+}
+
+  function toggleDateGroup(dateKey) {
+  if (collapsedDates.has(dateKey)) collapsedDates.delete(dateKey);
+  else collapsedDates.add(dateKey);
+  render();
+}
+
+  function attachSwipeHandlers(el, logId) {
+  let startX = 0, startY = 0;
+
+  el.addEventListener("touchstart", (e) => {
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+  }, { passive: true });
+
+  el.addEventListener("touchend", (e) => {
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+
+    // avoid accidental swipes when scrolling
+    if (Math.abs(dy) > 40) return;
+
+    // swipe threshold
+    if (dx > 70) startEdit(logId);          // swipe right to edit
+    if (dx < -70) deleteLog(logId);         // swipe left to delete
+  }, { passive: true });
+}
+
+  function weekStartMonday(d) {
+  const x = new Date(d);
+  const day = x.getDay(); // 0 Sun
+  const diff = (day === 0 ? -6 : 1 - day);
+  x.setDate(x.getDate() + diff);
+  x.setHours(0,0,0,0);
+  return x;
+}
+
+function inRange(dateStr, start, endExclusive) {
+  const d = parseISODate(dateStr);
+  return d >= start && d < endExclusive;
+}
+
+function sumForRange(start, endExclusive) {
+  const totals = { run: 0, bike: 0, swim: 0 };
+  let sessions = 0;
+  let minutes = 0;
+  let badmintonSessions = 0;
+
+  logs.forEach(l => {
+    if (!l.date) return;
+    if (!inRange(l.date, start, endExclusive)) return;
+
+    sessions += 1;
+    minutes += Number(l.duration || 0);
+
+    if (l.activity === "badminton") badmintonSessions += 1;
+    if (totals[l.activity] !== undefined) totals[l.activity] += Number(l.distance || 0);
+  });
+
+  return { totals, sessions, minutes, badmintonSessions };
+}
+
+function pct(current, target) {
+  if (target <= 0) return 0;
+  return Math.max(0, Math.min(100, (current / target) * 100));
+}
+
+function renderDashboard() {
+  const el = document.getElementById("dash");
+  if (!el) return;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const thisWeekStart = weekStartMonday(today);
+  const nextWeekStart = new Date(thisWeekStart); nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+
+  const lastWeekStart = new Date(thisWeekStart); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+
+  const w0 = sumForRange(thisWeekStart, nextWeekStart);
+  const w1 = sumForRange(lastWeekStart, thisWeekStart);
+
+  // Simple weekly targets (we can make editable later)
+  const targets = { run: 10, bike: 20, swim: 1 }; // km per week
+
+  const deltaSessions = w0.sessions - w1.sessions;
+  const deltaMinutes = w0.minutes - w1.minutes;
+
+  el.innerHTML = `
+    <div class="dash-card">
+      <div class="dash-row">
+        <div>
+          <div class="dash-title">This week</div>
+          <div class="dash-sub">Sessions & time</div>
+        </div>
+        <div class="delta ${deltaSessions >= 0 ? "pos" : "neg"}">
+          ${deltaSessions >= 0 ? "+" : ""}${deltaSessions} sess
+        </div>
+      </div>
+      <div class="dash-row" style="margin-top:10px;">
+        <div><b>${w0.sessions}</b> sessions</div>
+        <div class="delta ${deltaMinutes >= 0 ? "pos" : "neg"}">
+          ${deltaMinutes >= 0 ? "+" : ""}${deltaMinutes} min
+        </div>
+      </div>
+      <div class="dash-row" style="margin-top:6px;">
+        <div><b>${w0.minutes}</b> minutes</div>
+        <div><b>${w0.badmintonSessions}</b> badminton</div>
+      </div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-row">
+        <div class="dash-title">Weekly targets</div>
+        <div class="dash-sub">Progress bars</div>
+      </div>
+
+      <div class="dash-sub" style="margin-top:10px;">Run: ${w0.totals.run.toFixed(1)} / ${targets.run} km</div>
+      <div class="bar"><div style="width:${pct(w0.totals.run, targets.run)}%"></div></div>
+
+      <div class="dash-sub" style="margin-top:10px;">Bike: ${w0.totals.bike.toFixed(1)} / ${targets.bike} km</div>
+      <div class="bar"><div style="width:${pct(w0.totals.bike, targets.bike)}%"></div></div>
+
+      <div class="dash-sub" style="margin-top:10px;">Swim: ${w0.totals.swim.toFixed(1)} / ${targets.swim} km</div>
+      <div class="bar"><div style="width:${pct(w0.totals.swim, targets.swim)}%"></div></div>
+    </div>
+  `;
+}
+  
   // Load logs from cloud on startup
   loadAndRender();
+
+  setDefaultRangeForMobile();
 </script>
 
 </body>
