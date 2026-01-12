@@ -206,34 +206,49 @@ button:hover {
   <h2>Log Training</h2>
 
   <div class="form-grid">
-    <div>
+    <div class="field">
       <label>Date</label>
-      <input type="date" id="date" />
+      <div class="input-wrap">
+        <span class="icon">📅</span>
+        <input type="date" id="date" />
+      </div>
     </div>
 
-    <div>
+    <div class="field">
       <label>Activity</label>
-      <select id="activity">
-        <option value="run">Run</option>
-        <option value="bike">Bike</option>
-        <option value="swim">Swim</option>
-        <option value="badminton">Badminton</option>
-      </select>
+      <div class="input-wrap">
+        <span class="icon">🏷️</span>
+        <select id="activity">
+          <option value="run">Run</option>
+          <option value="bike">Bike</option>
+          <option value="swim">Swim</option>
+          <option value="badminton">Badminton</option>
+        </select>
+      </div>
     </div>
 
-    <div>
+    <div class="field">
       <label>Distance (km)</label>
-      <input type="number" id="distance" step="0.1" />
+      <div class="input-wrap">
+        <span class="icon">📏</span>
+        <input type="number" id="distance" step="0.1" />
+      </div>
     </div>
 
-    <div>
+    <div class="field">
       <label>Duration (min)</label>
-      <input type="number" id="duration" />
+      <div class="input-wrap">
+        <span class="icon">⏱️</span>
+        <input type="number" id="duration" />
+      </div>
     </div>
 
-    <div>
+    <div class="field notes-cell">
       <label>Notes</label>
-      <input type="text" id="notes" />
+      <div class="input-wrap">
+        <span class="icon">📝</span>
+        <input type="text" id="notes" />
+      </div>
     </div>
 
     <div class="save-cell">
