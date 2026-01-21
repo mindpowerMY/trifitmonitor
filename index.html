@@ -605,7 +605,7 @@ button:hover {
 
 <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
   <button class="coach-btn active" data-days="7" onclick="runCoachReviewUI(7)">
-    🧠 Coach Review (7 days)
+    Coach Review (7 days)
   </button>
   <button class="coach-btn" data-days="14" onclick="runCoachReviewUI(14)">
     Coach Review (14 days)
@@ -956,6 +956,13 @@ function cancelEdit() {
   clearForm();
 }
 
+function setDateTodayIfEmpty() {
+  const dateInput = document.getElementById("date");
+  if (!dateInput.value) {
+    dateInput.value = new Date().toISOString().slice(0, 10);
+  }
+}
+  
 function clearForm() {
   editingId = null;
   document.getElementById("distance").value = "";
@@ -1308,8 +1315,10 @@ function renderDashboard() {
   `;
 }
   
+  document.getElementById("date").value = new Date().toISOString().slice(0, 10);
   // Load logs from cloud on startup
   loadAndRender();
+  setDateTodayIfEmpty();
   runCoachReviewUI(7);
   setDefaultRangeForMobile();
 </script>
