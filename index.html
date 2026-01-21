@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Triathlon Fitness Monitor</title>
-  <link rel="icon" type="image/x-icon" href="https://cdn-icons-png.flaticon.com/128/1373/1373056.png">
+  <link rel="icon" type="image/x-icon" href="https://cdn-icons-png.flaticon.com/128/2000/2000047.png">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -201,6 +201,27 @@ button:hover {
   background: var(--primaryHover);
 }
 
+.coach-btn {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.coach-btn:hover {
+  border-color: var(--primary);
+}
+
+.coach-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+    
 /* Mobile: switch to 2 columns for easier thumb use */
 @media (max-width: 640px) {
   .form-grid {
@@ -583,9 +604,15 @@ button:hover {
 </div>
 
 <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-  <button class="primary-btn" onclick="runCoachReview()">🧠 Coach Review (7 days)</button>
-  <button class="secondary-btn" onclick="runCoachReview(14)">Coach Review (14 days)</button>
+  <button class="coach-btn active" data-days="7" onclick="runCoachReviewUI(7)">
+    🧠 Coach Review (7 days)
+  </button>
+  <button class="coach-btn" data-days="14" onclick="runCoachReviewUI(14)">
+    Coach Review (14 days)
+  </button>
 </div>
+
+<div id="coachPanel" class="dash-card" style="margin-top:12px; display:none;"></div>
 
 <div id="coachPanel" class="dash-card" style="margin-top:12px; display:none;"></div>
 
@@ -741,6 +768,16 @@ function htmlEscape(s) {
     .replaceAll("'", "&#039;");
 }
 
+function runCoachReviewUI(days) {
+  // toggle active button
+  document.querySelectorAll(".coach-btn").forEach(btn => {
+    btn.classList.toggle("active", Number(btn.dataset.days) === days);
+  });
+
+  // run the actual coach logic
+  runCoachReview(days);
+}
+  
 function runCoachReview(days = 7) {
   const recent = getRecentLogs(days);
 
@@ -1273,7 +1310,7 @@ function renderDashboard() {
   
   // Load logs from cloud on startup
   loadAndRender();
-  runCoachReview(7);
+  runCoachReviewUI(7);
   setDefaultRangeForMobile();
 </script>
 
