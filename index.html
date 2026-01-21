@@ -1295,7 +1295,7 @@ items.forEach((it, idx) => {
   ctx.fill();
 
   // Queue label to draw last (on top of everything)
-  labelQueue.push({ text: it.label, x: x + bw / 2, y: Math.max(14, y - 18) });
+  labelQueue.push({ text: it.label, x: x + bw / 2, y: Math.max(14, y - 26) });
 
   // Value text
   const displayValue =
@@ -1312,12 +1312,6 @@ items.forEach((it, idx) => {
 
   const textY = y + Math.max(18, bh / 2);
   ctx.fillText(displayValue, x + bw / 2, textY);
-
-  // Optional: subtle value above bar
-  ctx.font = "11px system-ui, -apple-system, Segoe UI";
-  ctx.fillStyle = "rgba(255,255,255,0.65)";
-  ctx.textBaseline = "bottom";
-  ctx.fillText(displayValue, x + bw / 2, y - 6);
 });
 
   // Draw activity labels LAST so they appear on top
@@ -1331,13 +1325,13 @@ items.forEach((it, idx) => {
   
     const textWidth = ctx.measureText(t.text).width;
     const pillW = textWidth + paddingX * 2;
-    const pillH = 20;
+    const pillH = 18;
   
     const px = t.x - pillW / 2;
     const py = t.y - pillH;
   
     // pill background
-    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
     ctx.beginPath();
     const r = 10;
     ctx.moveTo(px + r, py);
