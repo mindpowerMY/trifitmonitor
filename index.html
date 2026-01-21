@@ -56,6 +56,27 @@
       margin: 0 auto;
 }
 
+    .week-chart-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.chart-wrap {
+  width: 100%;
+}
+
+#weeklyChart {
+  width: 100%;
+  display: block;
+}
+
+@media (max-width: 640px) {
+  #weeklyChart { height: 260px; }
+}
+
 .form-grid input,
 .form-grid select {
   padding: 6px;
@@ -604,6 +625,25 @@ button:hover {
   <p class="feedback" id="coachFeedback"></p>
 </div>
 
+<div class="card">
+  <div class="week-chart-header">
+    <button class="icon-btn" onclick="prevWeek()" title="Previous week">←</button>
+    <div>
+      <div style="font-weight:800;">Weekly Logs</div>
+      <div id="weekLabel" class="dash-sub">—</div>
+    </div>
+    <button class="icon-btn" onclick="nextWeek()" title="Next week">→</button>
+  </div>
+
+  <div class="chart-wrap">
+    <canvas id="weeklyChart" height="240"></canvas>
+  </div>
+
+  <div class="dash-sub" style="margin-top:8px;">
+    Bars show totals for the selected week (Run/Bike/Swim in km, Badminton as sessions).
+  </div>
+</div>
+  
 <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
   <button class="coach-btn active" data-days="7" onclick="runCoachReviewUI(7)">
     Coach Review (7 days)
@@ -639,12 +679,13 @@ button:hover {
 </div>
 
 <div class="card">
-  <h2>Weekly Volume Chart</h2>
+  <h2>All Time Volume Chart</h2>
   <canvas id="chart"></canvas>
 </div>
 
 <script>
   const API_BASE = "https://trifit-api.wheezhacker.workers.dev";
+  window.addEventListener("resize", () => renderWeeklyChart());
   let editingId = null;
   const collapsedDates = new Set();
 
@@ -1030,6 +1071,7 @@ function filterLogs(allLogs) {
   renderHistory();
   renderSummary();
   renderDashboard();
+  renderWeeklyChart();  
   renderChart();
 }
 
@@ -1121,6 +1163,168 @@ header.innerHTML = `
   }
 }
 
+let weekOffset = 0; // 0 = this week, -1 = last week, +1 = next week
+
+function weekStartMonday(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 Sun, 1 Mon...
+  const diff = (day === 0 ? -6 : 1 - day);
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function addDays(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+function fmtYYYYMMDD(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${da}`;
+}
+
+function aggregateWeek(startDate) {
+  const endDate = addDays(startDate, 7);
+  const totals = { run: 0, bike: 0, swim: 0, badminton: 0 };
+
+  for (const l of logs) {
+    if (!l.date) continue;
+    const d = parseISODate(l.date);
+    if (d < startDate || d >= endDate) continue;
+
+    if (l.activity === "badminton") {
+      totals.badminton += 1;
+    } else if (l.activity === "run" || l.activity === "bike" || l.activity === "swim") {
+      totals[l.activity] += Number(l.distance || 0);
+    }
+  }
+  return totals;
+}
+
+function setWeekLabel(startDate) {
+  const end = addDays(startDate, 6);
+  const label = `${fmtYYYYMMDD(startDate)} → ${fmtYYYYMMDD(end)}`;
+  const el = document.getElementById("weekLabel");
+  if (el) el.textContent = label;
+}
+
+function drawWeeklyChart(values) {
+  const canvas = document.getElementById("weeklyChart");
+  if (!canvas) return;
+
+  // Responsive canvas sizing (important)
+  const parent = canvas.parentElement;
+  const cssWidth = parent ? parent.clientWidth : 360;
+  canvas.width = Math.floor(cssWidth * (window.devicePixelRatio || 1));
+  canvas.height = Math.floor(240 * (window.devicePixelRatio || 1));
+  canvas.style.height = "240px";
+
+  const ctx = canvas.getContext("2d");
+  const dpr = (window.devicePixelRatio || 1);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const W = cssWidth;
+  const H = 240;
+
+  // Data
+  const items = [
+    { key: "run", label: "Run (km)", value: values.run, color: "#ff4d4f" },
+    { key: "bike", label: "Bike (km)", value: values.bike, color: "#4c8dff" },
+    { key: "swim", label: "Swim (km)", value: values.swim, color: "#3ddc97" },
+    { key: "badminton", label: "Badminton (x)", value: values.badminton, color: "#f6c343" },
+  ];
+
+  // Layout
+  const padding = 14;
+  const top = 10;
+  const bottom = 36;
+  const left = 10;
+  const right = 10;
+  const chartH = H - top - bottom;
+  const chartW = W - left - right;
+
+  // Scale (use max value, but avoid 0)
+  const maxVal = Math.max(1, ...items.map(i => i.value));
+  const barGap = 10;
+  const barW = Math.floor((chartW - barGap * (items.length - 1)) / items.length);
+
+  // Clear
+  ctx.clearRect(0, 0, W, H);
+
+  // Subtle baseline
+  ctx.globalAlpha = 0.6;
+  ctx.beginPath();
+  ctx.moveTo(left, top + chartH);
+  ctx.lineTo(left + chartW, top + chartH);
+  ctx.strokeStyle = "rgba(255,255,255,0.25)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Bars
+  ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+
+  items.forEach((it, idx) => {
+    const x = left + idx * (barW + barGap);
+    const h = Math.round((it.value / maxVal) * (chartH - 12));
+    const y = top + chartH - h;
+
+    // Bar
+    ctx.fillStyle = it.color;
+    ctx.beginPath();
+    const r = 10;
+    const bw = barW;
+    const bh = h;
+
+    // rounded rect
+    ctx.moveTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.arcTo(x + bw, y, x + bw, y + r, r);
+    ctx.arcTo(x + bw, y + bh, x + bw - r, y + bh, r);
+    ctx.arcTo(x, y + bh, x, y + bh - r, r);
+    ctx.closePath();
+    ctx.fill();
+
+    // Value label above bar
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.textBaseline = "bottom";
+    const valText = it.key === "badminton" ? `${it.value}` : `${it.value.toFixed(1)}`;
+    ctx.fillText(valText, x + bw / 2, y - 6);
+
+    // X labels
+    ctx.fillStyle = "rgba(255,255,255,0.75)";
+    ctx.textBaseline = "top";
+    ctx.fillText(it.label, x + bw / 2, top + chartH + 8);
+  });
+}
+
+function renderWeeklyChart() {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const start = weekStartMonday(today);
+  const selectedStart = addDays(start, weekOffset * 7);
+
+  setWeekLabel(selectedStart);
+  const totals = aggregateWeek(selectedStart);
+  drawWeeklyChart(totals);
+}
+
+function prevWeek() {
+  weekOffset -= 1;
+  renderWeeklyChart();
+}
+
+function nextWeek() {
+  weekOffset += 1;
+  renderWeeklyChart();
+}
+  
 // Prevent notes from breaking HTML
 function escapeHtml(str) {
   return str
