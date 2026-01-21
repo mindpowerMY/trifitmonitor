@@ -48,9 +48,14 @@
       color: #006400;
     }
     .form-grid {
-  display: grid;
+  /*display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 10px;*/
+      display: grid;
+      grid-template-columns: 180px 180px 180px;
+      gap: 14px;
+      justify-content: start;
+      margin: 0 auto;
 }
 
 .form-grid input,
@@ -152,6 +157,8 @@ h1, h2 { color: var(--text); }
   padding-left: 44px;     /* more space so text never touches icon */
   padding-right: 38px;    /* space for dropdown chevron */
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 8px 10px 8px 32px;
   font-size: 14px;
   border: 1px solid var(--border);
@@ -200,6 +207,7 @@ button:hover {
 @media (max-width: 640px) {
   .form-grid {
     grid-template-columns: repeat(2, 1fr);
+    max-width: 360px;
   }
 
   /* Notes should be full width on mobile */
