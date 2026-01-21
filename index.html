@@ -1255,6 +1255,14 @@ function drawWeeklyChart(values) {
   // Clear
   ctx.clearRect(0, 0, W, H);
 
+  // PROOF STAMP - if you don't see this, your new JS is not running
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "#ff00ff";
+  ctx.font = "bold 18px system-ui";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText("CHART UPDATED ✅", 10, 10);
+
   // Subtle baseline
   ctx.globalAlpha = 0.6;
   ctx.beginPath();
