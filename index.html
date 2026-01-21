@@ -1020,6 +1020,7 @@ function clearForm() {
   async function loadAndRender() {
     logs = await apiGetLogs();
     render();
+    runCoachReviewUI(7);
   }
 
   function parseISODate(s) {
@@ -1567,7 +1568,6 @@ function renderDashboard() {
   // Load logs from cloud on startup
   loadAndRender();
   setDateTodayIfEmpty();
-  runCoachReviewUI(7);
   setDefaultRangeForMobile();
 </script>
 
