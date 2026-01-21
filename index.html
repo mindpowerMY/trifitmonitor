@@ -1255,14 +1255,6 @@ function drawWeeklyChart(values) {
   // Clear
   ctx.clearRect(0, 0, W, H);
 
-  // PROOF STAMP - if you don't see this, your new JS is not running
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = "#ff00ff";
-  ctx.font = "bold 18px system-ui";
-  ctx.textAlign = "left";
-  ctx.textBaseline = "top";
-  ctx.fillText("CHART UPDATED ✅", 10, 10);
-
   // Subtle baseline
   ctx.globalAlpha = 0.6;
   ctx.beginPath();
@@ -1277,62 +1269,66 @@ function drawWeeklyChart(values) {
   ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
+  
+  const labelQueue = [];
 
-  items.forEach((it, idx) => {
-    const x = left + idx * (barW + barGap);
-    const h = Math.round((it.value / maxVal) * (chartH - 12));
-    const y = top + chartH - h;
+ctx.textAlign = "center";
 
-    // Bar
-    ctx.fillStyle = it.color;
-    ctx.beginPath();
-    const r = 10;
-    const bw = barW;
-    const bh = h;
+items.forEach((it, idx) => {
+  const x = left + idx * (barW + barGap);
+  const h = Math.round((it.value / maxVal) * (chartH - 12));
+  const y = top + chartH - h;
 
-    // rounded rect
-    ctx.moveTo(x, y + r);
-    ctx.arcTo(x, y, x + r, y, r);
-    ctx.arcTo(x + bw, y, x + bw, y + r, r);
-    ctx.arcTo(x + bw, y + bh, x + bw - r, y + bh, r);
-    ctx.arcTo(x, y + bh, x, y + bh - r, r);
-    ctx.closePath();
-    ctx.fill();
+  // Bar
+  ctx.fillStyle = it.color;
+  ctx.beginPath();
+  const r = 10;
+  const bw = barW;
+  const bh = h;
 
-    // ---------- Activity label (TOP, guaranteed visible) ----------
-ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.moveTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.arcTo(x + bw, y, x + bw, y + r, r);
+  ctx.arcTo(x + bw, y + bh, x + bw - r, y + bh, r);
+  ctx.arcTo(x, y + bh, x, y + bh - r, r);
+  ctx.closePath();
+  ctx.fill();
+
+  // Queue label to draw last (on top of everything)
+  labelQueue.push({ text: it.label, x: x + bw / 2, y: Math.max(14, y - 18) });
+
+  // Value text
+  const displayValue =
+    it.key === "badminton"
+      ? `${it.value} ${it.unit}`
+      : `${it.value.toFixed(1)} ${it.unit}`;
+
+  // Value INSIDE bar
+  ctx.font = "bold 13px system-ui, -apple-system, Segoe UI";
+  ctx.fillStyle = it.key === "badminton"
+    ? "rgba(0,0,0,0.85)"
+    : "rgba(0,0,0,0.75)";
+  ctx.textBaseline = "middle";
+
+  const textY = y + Math.max(18, bh / 2);
+  ctx.fillText(displayValue, x + bw / 2, textY);
+
+  // Optional: subtle value above bar
+  ctx.font = "11px system-ui, -apple-system, Segoe UI";
+  ctx.fillStyle = "rgba(255,255,255,0.65)";
+  ctx.textBaseline = "bottom";
+  ctx.fillText(displayValue, x + bw / 2, y - 6);
+});
+
+// Draw activity labels LAST so they appear on top
+ctx.fillStyle = "rgba(255,255,255,0.95)";
 ctx.font = "bold 13px system-ui, -apple-system, Segoe UI";
 ctx.textAlign = "center";
 ctx.textBaseline = "bottom";
 
-// draw label ABOVE the bar top, with padding
-ctx.fillText(it.label, x + bw / 2, y - 10);
-
-// ---------- Value INSIDE bar ----------
-const displayValue =
-  it.key === "badminton"
-    ? `${it.value} ${it.unit}`
-    : `${it.value.toFixed(1)} ${it.unit}`;
-
-ctx.font = "bold 13px system-ui, -apple-system, Segoe UI";
-ctx.fillStyle = "rgba(0,0,0,0.75)";
-ctx.textBaseline = "middle";
-
-// Ensure text is readable even on small bars
-const textY = y + Math.max(18, bh / 2);
-ctx.fillText(displayValue, x + bw / 2, textY);
-
-// ---------- Optional: subtle value above bar (remove if you want) ----------
-ctx.font = "11px system-ui, -apple-system, Segoe UI";
-ctx.fillStyle = "rgba(255,255,255,0.65)";
-ctx.textBaseline = "bottom";
-ctx.fillText(displayValue, x + bw / 2, y - 6);
-
-    ctx.fillStyle = it.key === "badminton"
-  ? "rgba(0,0,0,0.85)"
-  : "rgba(0,0,0,0.75)";
-    
-  });
+for (const t of labelQueue) {
+  ctx.fillText(t.text, t.x, t.y);
+}
 }
 
 function renderWeeklyChart() {
