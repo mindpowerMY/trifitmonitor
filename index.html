@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Personal Triathlon Training Log</title>
+  <title>Triathlon Fitness Monitor</title>
+  <link rel="icon" type="image/x-icon" href="https://cdn-icons-png.flaticon.com/128/1373/1373056.png">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -514,7 +515,7 @@ button:hover {
 </head>
 <body>
 
-<h1>🏊‍♂️🚴‍♂️🏃‍♂️<br>My Training Dashboard</h1>
+<h1>🏊‍♂️🚴‍♂️🏃‍♂️<br>Triathlon Training Dashboard</h1>
 
 <div class="card">
   <h2>Log Training</h2>
@@ -575,10 +576,18 @@ button:hover {
 
 <div class="card">
   <h2>Weekly Summary</h2>
+  <h3>Lifetime Totals</h3>
   <p id="summary"></p>
   <div id="dash" class="dash-grid"></div>
   <p class="feedback" id="coachFeedback"></p>
 </div>
+
+<div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+  <button class="primary-btn" onclick="runCoachReview()">🧠 Coach Review (7 days)</button>
+  <button class="secondary-btn" onclick="runCoachReview(14)">Coach Review (14 days)</button>
+</div>
+
+<div id="coachPanel" class="dash-card" style="margin-top:12px; display:none;"></div>
 
 <div class="card">
   <h2>Training History</h2>
@@ -652,6 +661,169 @@ button:hover {
     return true;
   }
 
+  function daysAgoDate(n) {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - n);
+  return d;
+}
+
+function getRecentLogs(days) {
+  const minDate = daysAgoDate(days - 1);
+  return logs
+    .filter(l => l.date && parseISODate(l.date) >= minDate)
+    .slice()
+    .sort((a,b) => (a.date < b.date ? 1 : -1));
+}
+
+function scoreSession(l) {
+  // Simple "effort points" model (no heart rate needed)
+  // Bigger = harder load.
+  const dur = Number(l.duration || 0);
+  const dist = Number(l.distance || 0);
+
+  let points = 0;
+
+  if (l.activity === "run") {
+    points = dur * 1.2 + dist * 2.0;
+  } else if (l.activity === "bike") {
+    points = dur * 0.8 + dist * 0.8;
+  } else if (l.activity === "swim") {
+    points = dur * 1.0 + dist * 4.0; // swims are "hard per km"
+  } else if (l.activity === "badminton") {
+    points = dur * 1.1; // treat as hard leg-ish
+  } else {
+    points = dur * 1.0;
+  }
+
+  // Cap insane outliers
+  return Math.min(200, Math.round(points));
+}
+
+function isHardLegDay(l) {
+  // simple heuristic: running always counts, badminton counts
+  // long/hard bike can count too
+  if (l.activity === "run") return true;
+  if (l.activity === "badminton") return true;
+  if (l.activity === "bike" && Number(l.duration || 0) >= 60) return true;
+  return false;
+}
+
+function buildNextWeekPlan(days, stats) {
+  // 3–4 sessions/week goal
+  // prioritize swim if low, keep run easy if run-heavy, add bike for aerobic
+  const sessionsTarget = 4; // can make this user setting later
+
+  const needsSwim = stats.totals.swim < 1.0;
+  const runHeavy = stats.totals.run > (stats.totals.bike + stats.totals.swim) * 0.8 && stats.totals.run > 6;
+
+  const plan = [];
+  if (needsSwim) plan.push("Swim (easy technique) 20–30 min");
+  plan.push("Bike (steady) 35–50 min");
+  if (runHeavy) {
+    plan.push("Run (easy/walk-run) 20–35 min");
+  } else {
+    plan.push("Run (easy) 25–40 min");
+  }
+  if (sessionsTarget >= 4) {
+    plan.push(needsSwim ? "Swim (short) 15–25 min" : "Bike (easy) 30–40 min");
+  }
+
+  return plan.slice(0, sessionsTarget);
+}
+
+function htmlEscape(s) {
+  return (s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function runCoachReview(days = 7) {
+  const recent = getRecentLogs(days);
+
+  const totals = { run: 0, bike: 0, swim: 0 };
+  let minutes = 0;
+  let sessions = recent.length;
+  let badmintonSessions = 0;
+
+  let hardLegDays = 0;
+  const hardDates = new Set();
+
+  let load = 0;
+
+  for (const l of recent) {
+    minutes += Number(l.duration || 0);
+    if (l.activity === "badminton") badmintonSessions++;
+
+    if (totals[l.activity] !== undefined) totals[l.activity] += Number(l.distance || 0);
+
+    load += scoreSession(l);
+
+    if (isHardLegDay(l)) {
+      hardDates.add(l.date);
+    }
+  }
+
+  hardLegDays = hardDates.size;
+
+  // Warnings
+  const warnings = [];
+  if (totals.swim < (days <= 7 ? 0.5 : 1.0)) warnings.push("Swimming is very low. Add 1–2 short technique swims.");
+  if (hardLegDays >= 4 && days <= 7) warnings.push("Too many hard leg days. Risk of fatigue/injury — keep next run easy.");
+  if (totals.run > totals.bike * 2 && totals.run > 6) warnings.push("Run-heavy balance. Add more bike/swim for aerobic fitness.");
+  if (sessions === 0) warnings.push("No sessions logged. Start with 2–3 easy sessions to rebuild consistency.");
+
+  // Guidance
+  let tomorrow = "Easy";
+  if (hardLegDays >= 3 && days <= 7) tomorrow = "Recovery / Easy only";
+  if (load < 80 && sessions >= 2) tomorrow = "Moderate is ok";
+  if (load > 180) tomorrow = "Recovery recommended";
+
+  const stats = { totals, minutes, sessions, badmintonSessions, load, hardLegDays };
+  const plan = buildNextWeekPlan(days, stats);
+
+  // Render panel
+  const panel = document.getElementById("coachPanel");
+  panel.style.display = "block";
+
+  panel.innerHTML = `
+    <div class="dash-row">
+      <div>
+        <div class="dash-title">Coach Review (${days} days)</div>
+        <div class="dash-sub">Rule-based coaching (free)</div>
+      </div>
+      <div class="delta ${load >= 160 ? "neg" : "pos"}">Load: ${load}</div>
+    </div>
+
+    <div class="dash-sub" style="margin-top:10px;">
+      Sessions: <b>${sessions}</b> • Time: <b>${minutes}</b> min • Hard leg days: <b>${hardLegDays}</b>
+      ${badmintonSessions ? ` • Badminton: <b>${badmintonSessions}</b>` : ""}
+    </div>
+
+    <div class="dash-sub" style="margin-top:10px;">
+      Run: <b>${totals.run.toFixed(1)} km</b> • Bike: <b>${totals.bike.toFixed(1)} km</b> • Swim: <b>${totals.swim.toFixed(1)} km</b>
+    </div>
+
+    <div style="margin-top:12px;">
+      <div class="dash-title" style="font-size:14px;">Tomorrow intensity</div>
+      <div class="dash-sub">Suggested: <b>${tomorrow}</b></div>
+    </div>
+
+    <div style="margin-top:12px;">
+      <div class="dash-title" style="font-size:14px;">Warnings</div>
+      <div class="dash-sub">${warnings.length ? warnings.map(w => "• " + htmlEscape(w)).join("<br/>") : "• Looking balanced. Keep consistency."}</div>
+    </div>
+
+    <div style="margin-top:12px;">
+      <div class="dash-title" style="font-size:14px;">Suggested next week (3–4 sessions)</div>
+      <div class="dash-sub">${plan.map(p => "• " + htmlEscape(p)).join("<br/>")}</div>
+    </div>
+  `;
+}
+  
   function setStatus(msg) {
     // Optional: show status in console for now
     console.log(msg);
@@ -1101,7 +1273,7 @@ function renderDashboard() {
   
   // Load logs from cloud on startup
   loadAndRender();
-
+  runCoachReview(7);
   setDefaultRangeForMobile();
 </script>
 
