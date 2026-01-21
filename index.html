@@ -695,34 +695,6 @@ button:hover {
   return d;
 }
 
-function durationToSeconds(l) {
-  // New format (if we add later)
-  if (l && l.durationMin !== undefined) {
-    var min = Number(l.durationMin || 0);
-    var sec = Number(l.durationSec || 0);
-    return (min * 60) + sec;
-  }
-
-  // Legacy format: duration stored as minutes (possibly decimal)
-  var legacyMinutes = 0;
-  if (l && l.duration !== undefined) legacyMinutes = Number(l.duration || 0);
-  //return Math.round(legacyMinutes * 60);
-  return Math.round(minutes);
-}
-
-function formatDurationMMSS(l) {
-  var total = durationToSeconds(l);
-  var min = Math.floor(total / 60);
-  var sec = total % 60;
-  var secStr = String(sec);
-  if (secStr.length < 2) secStr = "0" + secStr;
-  return String(min) + ":" + secStr;
-}
-
-function durationToMinutes(l) {
-  return durationToSeconds(l) / 60;
-}
-  
 function getRecentLogs(days) {
   const minDate = daysAgoDate(days - 1);
   return logs
@@ -820,7 +792,7 @@ function runCoachReview(days = 7) {
   let load = 0;
 
   for (const l of recent) {
-    minutes += durationToMinutes(l);
+    minutes += Number(l.duration || 0);
     if (l.activity === "badminton") badmintonSessions++;
 
     if (totals[l.activity] !== undefined) totals[l.activity] += Number(l.distance || 0);
@@ -1108,8 +1080,7 @@ header.innerHTML = `
       if (collapsedDates.has(dateKey)) return;
       const { emoji, label } = activityBadge(l.activity);
       const distanceText = (Number(l.distance || 0)).toFixed(2) + " km";
-      //const durationText = (Number(l.duration || 0)) + " min";
-      var durationText = formatDurationMMSS(l);
+      const durationText = (Number(l.duration || 0)) + " min";
       const notesText = (l.notes || "").trim();
 
       const li = document.createElement("li");
@@ -1270,7 +1241,7 @@ function sumForRange(start, endExclusive) {
     if (!inRange(l.date, start, endExclusive)) return;
 
     sessions += 1;
-    minutes += durationToMinutes(l);
+    minutes += Number(l.duration || 0);
 
     if (l.activity === "badminton") badmintonSessions += 1;
     if (totals[l.activity] !== undefined) totals[l.activity] += Number(l.distance || 0);
