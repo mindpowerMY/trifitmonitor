@@ -1291,12 +1291,14 @@ function drawWeeklyChart(values) {
     ctx.closePath();
     ctx.fill();
 
-    // ---------- Activity label (TOP) ----------
-ctx.fillStyle = "rgba(255,255,255,0.85)";
-ctx.font = "12px system-ui, -apple-system, Segoe UI";
+    // ---------- Activity label (TOP, guaranteed visible) ----------
+ctx.fillStyle = "rgba(255,255,255,0.9)";
+ctx.font = "bold 13px system-ui, -apple-system, Segoe UI";
 ctx.textAlign = "center";
-ctx.textBaseline = "top";
-ctx.fillText(it.label, x + bw / 2, top - 22);
+ctx.textBaseline = "bottom";
+
+// draw label ABOVE the bar top, with padding
+ctx.fillText(it.label, x + bw / 2, y - 10);
 
 // ---------- Value INSIDE bar ----------
 const displayValue =
