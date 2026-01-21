@@ -1320,15 +1320,38 @@ items.forEach((it, idx) => {
   ctx.fillText(displayValue, x + bw / 2, y - 6);
 });
 
-// Draw activity labels LAST so they appear on top
-ctx.fillStyle = "rgba(255,255,255,0.95)";
-ctx.font = "bold 13px system-ui, -apple-system, Segoe UI";
-ctx.textAlign = "center";
-ctx.textBaseline = "bottom";
-
-for (const t of labelQueue) {
-  ctx.fillText(t.text, t.x, t.y);
-}
+  // Draw activity labels LAST so they appear on top
+  ctx.font = "bold 13px system-ui, -apple-system, Segoe UI";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  
+  for (const t of labelQueue) {
+    const paddingX = 8;
+    const paddingY = 4;
+  
+    const textWidth = ctx.measureText(t.text).width;
+    const pillW = textWidth + paddingX * 2;
+    const pillH = 20;
+  
+    const px = t.x - pillW / 2;
+    const py = t.y - pillH;
+  
+    // pill background
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.beginPath();
+    const r = 10;
+    ctx.moveTo(px + r, py);
+    ctx.arcTo(px + pillW, py, px + pillW, py + pillH, r);
+    ctx.arcTo(px + pillW, py + pillH, px, py + pillH, r);
+    ctx.arcTo(px, py + pillH, px, py, r);
+    ctx.arcTo(px, py, px + pillW, py, r);
+    ctx.closePath();
+    ctx.fill();
+  
+    // label text
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(t.text, t.x, py + pillH / 2);
+  }
 }
 
 function renderWeeklyChart() {
