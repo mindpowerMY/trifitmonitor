@@ -1221,14 +1221,14 @@ function drawWeeklyChart(values) {
   const cssWidth = parent ? parent.clientWidth : 360;
   canvas.width = Math.floor(cssWidth * (window.devicePixelRatio || 1));
   canvas.height = Math.floor(240 * (window.devicePixelRatio || 1));
-  canvas.style.height = "240px";
+  canvas.style.height = "280px";
 
   const ctx = canvas.getContext("2d");
   const dpr = (window.devicePixelRatio || 1);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   const W = cssWidth;
-  const H = 240;
+  const H = 280;
 
   // Data
   const items = [
@@ -1296,7 +1296,7 @@ ctx.fillStyle = "rgba(255,255,255,0.85)";
 ctx.font = "12px system-ui, -apple-system, Segoe UI";
 ctx.textAlign = "center";
 ctx.textBaseline = "top";
-ctx.fillText(it.label, x + bw / 2, 8);
+ctx.fillText(it.label, x + bw / 2, top - 22);
 
 // ---------- Value INSIDE bar ----------
 const displayValue =
