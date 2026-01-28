@@ -73,6 +73,11 @@
   display: block;
 }
 
+#weeklyDailyChart {
+  width: 100%;
+  display: block;
+}
+
 @media (max-width: 640px) {
   #weeklyChart { height: 260px; }
 }
@@ -654,10 +659,28 @@ button:hover {
 </div>
 
 <div id="coachPanel" class="dash-card" style="margin-top:12px; margin-bottom:16px; display:none;"></div>
-<div id="coachPanel" class="dash-card" style="margin-top:12px; margin-bottom:16px; display:none;"></div>
 
 <div class="card">
   <h2>Training History</h2>
+  <div class="card">
+  	<div class="week-chart-header">
+    	<button class="icon-btn" onclick="prevWeek()" title="Previous week">←</button>
+    	<div>
+      	<div style="font-weight:800;">Weekly Daily Bars</div>
+      	<div id="weekLabelDaily" class="dash-sub">—</div>
+    	</div>
+    	<button class="icon-btn" onclick="nextWeek()" title="Next week">→</button>
+  	</div>
+
+  	<div class="chart-wrap">
+    	<canvas id="weeklyDailyChart" height="240"></canvas>
+  	</div>
+
+  	<div class="dash-sub" style="margin-top:8px;">
+   	 Each day shows stacked km (Run/Bike/Swim). 🏸 badge = badminton sessions.
+  	</div>
+	</div>
+
   <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
   <select id="rangeFilter" onchange="render()" style="flex:1; min-width:160px;">
     <option value="all">All time</option>
@@ -685,7 +708,10 @@ button:hover {
 
 <script>
   const API_BASE = "https://trifit-api.wheezhacker.workers.dev";
-  window.addEventListener("resize", () => renderWeeklyChart());
+  window.addEventListener("resize", () => {
+  renderWeeklyChart();
+  renderWeeklyDailyChart();
+});
   let editingId = null;
   const collapsedDates = new Set();
 
@@ -1074,7 +1100,8 @@ function filterLogs(allLogs) {
   renderHistory();
   renderSummary();
   renderDashboard();
-  renderWeeklyChart();  
+  renderWeeklyChart();
+  renderWeeklyDailyChart();  
   renderChart();
 }
 
@@ -1351,6 +1378,165 @@ items.forEach((it, idx) => {
   }
 }
 
+function setWeekLabelDaily(startDate) {
+  const end = addDays(startDate, 6);
+  const label = `${fmtYYYYMMDD(startDate)} → ${fmtYYYYMMDD(end)}`;
+  const el = document.getElementById("weekLabelDaily");
+  if (el) el.textContent = label;
+}
+
+function aggregateWeekDaily(startDate) {
+  const endDate = addDays(startDate, 7);
+
+  // 7 days: Mon..Sun
+  const days = Array.from({ length: 7 }, () => ({
+    run: 0,
+    bike: 0,
+    swim: 0,
+    badminton: 0
+  }));
+
+  for (const l of logs) {
+    if (!l.date) continue;
+
+    const d = parseISODate(l.date);
+    if (d < startDate || d >= endDate) continue;
+
+    const idx = Math.floor((d - startDate) / 86400000);
+    if (idx < 0 || idx > 6) continue;
+
+    if (l.activity === "badminton") {
+      days[idx].badminton += 1;
+    } else if (l.activity === "run" || l.activity === "bike" || l.activity === "swim") {
+      days[idx][l.activity] += Number(l.distance || 0);
+    }
+  }
+
+  return days;
+}
+
+function drawWeeklyDailyChart(days) {
+  const canvas = document.getElementById("weeklyDailyChart");
+  if (!canvas) return;
+
+  const parent = canvas.parentElement;
+  const cssWidth = parent ? parent.clientWidth : 360;
+
+  const H = 280;
+  canvas.width = Math.floor(cssWidth * (window.devicePixelRatio || 1));
+  canvas.height = Math.floor(H * (window.devicePixelRatio || 1));
+  canvas.style.height = H + "px";
+
+  const ctx = canvas.getContext("2d");
+  const dpr = (window.devicePixelRatio || 1);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const W = cssWidth;
+
+  // Layout
+  const left = 12, right = 12, top = 14, bottom = 46;
+  const chartW = W - left - right;
+  const chartH = H - top - bottom;
+
+  const gap = 10;
+  const barW = Math.floor((chartW - gap * 6) / 7);
+  const dayLabels = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+  // Colors (match your existing theme choices)
+  const C_RUN = "#ff4d4f";
+  const C_BIKE = "#4c8dff";
+  const C_SWIM = "#3ddc97";
+  const C_BAD = "#f6c343";
+
+  // Scale by max stacked km in any day
+  let maxStack = 1;
+  for (const d of days) {
+    maxStack = Math.max(maxStack, d.run + d.bike + d.swim);
+  }
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Baseline
+  ctx.globalAlpha = 0.6;
+  ctx.beginPath();
+  ctx.moveTo(left, top + chartH);
+  ctx.lineTo(left + chartW, top + chartH);
+  ctx.strokeStyle = "rgba(255,255,255,0.25)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Draw bars
+  ctx.textAlign = "center";
+
+  for (let i = 0; i < 7; i++) {
+    const x = left + i * (barW + gap);
+    let y = top + chartH;
+
+    const scale = (chartH - 8) / maxStack;
+
+    const swimH = Math.round(days[i].swim * scale);
+    const bikeH = Math.round(days[i].bike * scale);
+    const runH  = Math.round(days[i].run  * scale);
+
+    // Swim bottom
+    if (swimH > 0) {
+      y -= swimH;
+      ctx.fillStyle = C_SWIM;
+      ctx.fillRect(x, y, barW, swimH);
+    }
+
+    // Bike middle
+    if (bikeH > 0) {
+      y -= bikeH;
+      ctx.fillStyle = C_BIKE;
+      ctx.fillRect(x, y, barW, bikeH);
+    }
+
+    // Run top
+    if (runH > 0) {
+      y -= runH;
+      ctx.fillStyle = C_RUN;
+      ctx.fillRect(x, y, barW, runH);
+    }
+
+    // Badminton badge count
+    if (days[i].badminton > 0) {
+      const bx = x + barW / 2;
+      const by = Math.max(18, y - 14);
+
+      ctx.fillStyle = C_BAD;
+      ctx.beginPath();
+      ctx.arc(bx, by, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(0,0,0,0.85)";
+      ctx.font = "bold 12px system-ui, -apple-system, Segoe UI";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(days[i].badminton), bx, by);
+    }
+
+    // Day label
+    ctx.fillStyle = "rgba(255,255,255,0.75)";
+    ctx.font = "12px system-ui, -apple-system, Segoe UI";
+    ctx.textBaseline = "top";
+    ctx.fillText(dayLabels[i], x + barW / 2, top + chartH + 10);
+  }
+}
+
+function renderWeeklyDailyChart() {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  const start = weekStartMonday(today);
+  const selectedStart = addDays(start, weekOffset * 7);
+
+  setWeekLabelDaily(selectedStart);
+
+  const days = aggregateWeekDaily(selectedStart);
+  drawWeeklyDailyChart(days);
+}
+
 function renderWeeklyChart() {
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -1364,12 +1550,14 @@ function renderWeeklyChart() {
 
 function prevWeek() {
   weekOffset -= 1;
-  renderWeeklyChart();
+  renderWeeklyChart();       // your existing weekly totals chart
+  renderWeeklyDailyChart();  // NEW daily bars chart
 }
 
 function nextWeek() {
   weekOffset += 1;
   renderWeeklyChart();
+  renderWeeklyDailyChart();
 }
   
 // Prevent notes from breaking HTML
@@ -1465,15 +1653,6 @@ function escapeHtml(str) {
     if (dx > 70) startEdit(logId);          // swipe right to edit
     if (dx < -70) deleteLog(logId);         // swipe left to delete
   }, { passive: true });
-}
-
-  function weekStartMonday(d) {
-  const x = new Date(d);
-  const day = x.getDay(); // 0 Sun
-  const diff = (day === 0 ? -6 : 1 - day);
-  x.setDate(x.getDate() + diff);
-  x.setHours(0,0,0,0);
-  return x;
 }
 
 function inRange(dateStr, start, endExclusive) {
