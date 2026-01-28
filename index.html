@@ -1210,6 +1210,12 @@ function addDays(d, n) {
   return x;
 }
 
+function fmtMMDD(d) {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  return `${m}/${da}`;
+}
+	
 function fmtYYYYMMDD(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -1415,8 +1421,8 @@ function aggregateWeekDaily(startDate) {
   return days;
 }
 
-function drawWeeklyDailyChart(days) {
-  const canvas = document.getElementById("weeklyDailyChart");
+function drawWeeklyDailyChart(days, startOfWeek) {
+	const canvas = document.getElementById("weeklyDailyChart");
   if (!canvas) return;
 
   const parent = canvas.parentElement;
@@ -1516,11 +1522,17 @@ function drawWeeklyDailyChart(days) {
       ctx.fillText(String(days[i].badminton), bx, by);
     }
 
-    // Day label
-    ctx.fillStyle = "rgba(255,255,255,0.75)";
-    ctx.font = "12px system-ui, -apple-system, Segoe UI";
-    ctx.textBaseline = "top";
-    ctx.fillText(dayLabels[i], x + barW / 2, top + chartH + 10);
+    // Day + date label
+	const dayDate = addDays(startOfWeek, i); // Monday + i
+	
+	ctx.fillStyle = "rgba(255,255,255,0.85)";
+	ctx.font = "bold 12px system-ui, -apple-system, Segoe UI";
+	ctx.textBaseline = "top";
+	ctx.fillText(dayLabels[i], x + barW / 2, top + chartH + 6);
+	
+	ctx.fillStyle = "rgba(255,255,255,0.55)";
+	ctx.font = "11px system-ui, -apple-system, Segoe UI";
+	ctx.fillText(fmtMMDD(dayDate), x + barW / 2, top + chartH + 22);
   }
 }
 
@@ -1534,7 +1546,7 @@ function renderWeeklyDailyChart() {
   setWeekLabelDaily(selectedStart);
 
   const days = aggregateWeekDaily(selectedStart);
-  drawWeeklyDailyChart(days);
+  drawWeeklyDailyChart(days, selectedStart);
 }
 
 function renderWeeklyChart() {
