@@ -1384,6 +1384,39 @@ items.forEach((it, idx) => {
   }
 }
 
+function drawPill(ctx, cx, cy, text, opts = {}) {
+  const padX = opts.padX ?? 8;
+  const padY = opts.padY ?? 4;
+  const r = opts.r ?? 10;
+  const bg = opts.bg ?? "rgba(0,0,0,0.45)";
+  const fg = opts.fg ?? "#fff";
+  const font = opts.font ?? "bold 12px system-ui, -apple-system, Segoe UI";
+
+  ctx.save();
+  ctx.font = font;
+  const w = ctx.measureText(text).width + padX * 2;
+  const h = (opts.h ?? 18);
+
+  const x = cx - w / 2;
+  const y = cy;
+
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = fg;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, cx, y + h / 2);
+  ctx.restore();
+}
+	
 function setWeekLabelDaily(startDate) {
   const end = addDays(startDate, 6);
   const label = `${fmtYYYYMMDD(startDate)} → ${fmtYYYYMMDD(end)}`;
@@ -1522,17 +1555,24 @@ function drawWeeklyDailyChart(days, startOfWeek) {
       ctx.fillText(String(days[i].badminton), bx, by);
     }
 
-    // Day + date label
-	const dayDate = addDays(startOfWeek, i); // Monday + i
+    // Day + date labels with pill backgrounds
+	const dayDate = addDays(startOfWeek, i);
+	const y1 = top + chartH + 6;
+	const y2 = top + chartH + 26;
 	
-	ctx.fillStyle = "rgba(255,255,255,0.85)";
-	ctx.font = "bold 12px system-ui, -apple-system, Segoe UI";
-	ctx.textBaseline = "top";
-	ctx.fillText(dayLabels[i], x + barW / 2, top + chartH + 6);
+	drawPill(ctx, x + barW / 2, y1, dayLabels[i], {
+	  bg: "rgba(0,0,0,0.45)",
+	  fg: "#fff",
+	  font: "bold 12px system-ui, -apple-system, Segoe UI",
+	  h: 18
+	});
 	
-	ctx.fillStyle = "rgba(255,255,255,0.55)";
-	ctx.font = "11px system-ui, -apple-system, Segoe UI";
-	ctx.fillText(fmtMMDD(dayDate), x + barW / 2, top + chartH + 22);
+	drawPill(ctx, x + barW / 2, y2, fmtMMDD(dayDate), {
+	  bg: "rgba(0,0,0,0.35)",
+	  fg: "rgba(255,255,255,0.95)",
+	  font: "11px system-ui, -apple-system, Segoe UI",
+	  h: 18
+	});
   }
 }
 
